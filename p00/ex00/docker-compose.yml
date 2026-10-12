@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: piscineds
+    environment:
+      POSTGRES_USER: gcassi-d
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: piscineds
+    ports:
+      - "8181:8181"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
