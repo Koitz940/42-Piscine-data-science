@@ -23,22 +23,38 @@ def main():
 	print("normalized test:")
 	print(normalized_test)
 
-	fig, ax = plt.subplots()
+	fig, ax = plt.subplots(2, 1)
 	
-	ax.scatter(
+	ax[0].scatter(
 		normalized_train[normalized_train["knight"] == "Jedi"]["Push"],
 		normalized_train[normalized_train["knight"] == "Jedi"]["Deflection"],
 		color="red",
 		label="Jedi"
 	)
 
-	ax.scatter(
+	ax[0].scatter(
 		normalized_train[normalized_train["knight"] == "Sith"]["Push"],
 		normalized_train[normalized_train["knight"] == "Sith"]["Deflection"],
 		color="blue",
 		label="Sith"
 	)
 
+	ax[0].set_title("Train - Push vs Deflection")
+	ax[0].set_xlabel("Push")
+	ax[0].set_ylabel("Deflection")
+	ax[0].legend()
+
+	ax[1].scatter(
+		normalized_test["Push"],
+		normalized_test["Deflection"],
+		color="green",
+		label="Knight"
+	)
+
+	ax[1].set_title("Test - Push vs Deflection")
+	ax[1].set_xlabel("Push")
+	ax[1].set_ylabel("Deflection")
+	ax[1].legend()
 
 	plt.tight_layout()
 	plt.show()

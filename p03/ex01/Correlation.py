@@ -7,7 +7,7 @@ def main():
 		"Jedi": 1,
 		"Sith": 0
 	})
-	correlations = train.corr(numeric_only=True, method="kendall")["knight_encoded"]
+	correlations = train.corr(numeric_only=True, method="pearson")["knight_encoded"]
 
 	correlations = correlations.sort_values(ascending=False)
 

@@ -47,23 +47,26 @@ def main():
 	axes[1, 0].scatter(
 		test["Empowered"],
 		test["Sprint"],
-		color="green"
+		color="green",
+		label="Knight"
 	)
 
 	axes[1, 0].set_title("Test - Empowered vs Sprint")
 	axes[1, 0].set_xlabel("Empowered")
 	axes[1, 0].set_ylabel("Sprint")
+	axes[1, 0].legend()
 
 	axes[1, 1].scatter(
 		test["Push"],
 		test["Deflection"],
-		color="green"
+		color="green",
+		label="Knight"
 	)
 
 	axes[1, 1].set_title("Test - Push vs Deflection")
 	axes[1, 1].set_xlabel("Push")
 	axes[1, 1].set_ylabel("Deflection")
-
+	axes[1, 1].legend()
 
 	plt.tight_layout()
 	plt.show()
