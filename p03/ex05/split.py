@@ -1,5 +1,6 @@
 import sys
 import pandas as pd
+import random
 
 
 def main():
@@ -15,8 +16,8 @@ def main():
 
     split = int(len(df) * 0.8)
 
-    training = df.iloc[:split]
-    validation = df.iloc[split:]
+    training = df.sample(n=split, random_state=42)
+    validation = df.drop(training.index)
 
     training.to_csv("Training_knight.csv", index=False)
     validation.to_csv("Validation_knight.csv", index=False)

@@ -1,9 +1,12 @@
 import pandas as pd
 from collections import Counter
-from collections.abc import Callable
 import math
 import sys
 import matplotlib.pyplot as plt
+import numpy as np
+
+def translate(l):
+	return "Jedi" if l[0] > l[1] else "Sith"
 
 def euclidean(s1, s2):
 	return math.sqrt(sum((a - s2[key]) * (a - s2[key]) for (key, a) in s1.items()))
@@ -48,11 +51,6 @@ def canberra(s1, s2):
     return total
 
 class KNN:
-	mean: float
-	k: int
-	df: pd.DataFrame
-	sd: float
-	
 	def __init__(self, k, df, distance):
 		self.k = k
 		self.distance = distance
@@ -61,8 +59,16 @@ class KNN:
 		self.mean = df[self.features].mean()
 		self.std = df[self.features].std().replace(0, 1)
 
-		self.df = df.copy()
-		self.df[self.features] = (df[self.features] - self.mean) / self.std
+		self.X = (
+			(df[self.features] - self.mean) / self.std
+		).to_numpy(dtype=float)
+
+		self.y = df["knight"].to_numpy()
+
+		self.candidates = [
+			dict(zip(self.features, row))
+			for row in self.X
+		]
 
 	def predict(self, sample):
 		sample = {
@@ -70,42 +76,51 @@ class KNN:
 			for key, value in sample.items()
 		}
 
-		nearest = []
+		distances = np.fromiter(
+			(
+				self.distance(sample, candidate)
+				for candidate in self.candidates
+			),
+			dtype=float,
+			count=len(self.candidates)
+		)
 
-		for _, row in self.df.iterrows():
-			label = row["knight"]
-			candidate = row[self.features].to_dict()
-			d = self.distance(sample, candidate)
-
-			i = 0
-			while i < len(nearest) and nearest[i][0] < d:
-				i += 1
-
-			nearest.insert(i, (d, label))
-
-			if len(nearest) > self.k:
-				nearest.pop()
+		k = min(self.k, len(distances))
+		nearest_idx = np.argpartition(distances, k - 1)[:k]
 
 		votes = Counter()
-		for d, label in nearest:
-			votes[label] += 1 / (d + 1e-10)
 
-		return votes.most_common(1)[0][0]
+		for i in nearest_idx:
+			votes[self.y[i]] += 1 / (distances[i] + 1e-10)
+
+		s = float(votes["Jedi"]) + float(votes["Sith"])
+		return [float(votes["Jedi"]) / s, float(votes["Sith"]) / s]
 	
 def describe(mat):
-	tprecision = mat[0][0] / (mat[0][0] + mat[0][1])
-	trecall = mat[0][0] / (mat[0][0] + mat[1][0])
-	nprecision = mat[1][1] / (mat[1][1] + mat[1][0])
-	nrecall = mat[1][1] / (mat[1][1] + mat[0][1])
+	tp = mat[0][0]
+	fn = mat[0][1]
+	fp = mat[1][0]
+	tn = mat[1][1]
+
+	total = tn + tp + fn + fp
+
+	tprecision = tp / (tp + fp)
+	trecall = tp / (tp + fn)
+
+	nprecision = tn / (tn + fn)
+	nrecall = tn / (tn + fp)
+
 	tf1 = 2 * tprecision * trecall / (tprecision + trecall)
 	nf1 = 2 * nprecision * nrecall / (nprecision + nrecall)
-	acc = (tf1 + nf1) / 2
-	total = sum(sum(l) for l in mat)
+
+	acc = (tp + tn) / total
+
 	print(f"{'':10}{'precision':10}{'recall':10}{'f1-score':10}{'total':10}\n")
 	print(f"{'Jedi':10}{tprecision:<10.2f}{trecall:<10.2f}{tf1:<10.2f}{sum(mat[0]):<10}")
 	print(f"{'Sith':10}{nprecision:<10.2f}{nrecall:<10.2f}{nf1:<10.2f}{sum(mat[1]):<10}\n")
 	print(f"{'accuracy':10}{'':10}{'':10}{acc:<10.2f}{total:<10}\n")
-	print(f"[[{mat[0][0]} {mat[0][1]}]\n [{mat[1][0]} {mat[1][1]}]]")
+	print(f"[[{tp} {fp}]\n [{fn} {tn}]]")
+
 	return acc
 
 
@@ -117,12 +132,14 @@ def test_distances():
 	test = pd.read_csv("../Validation_knight.csv")
 
 	for k in range(1, 31):
+		print()
+		print(f"k = {k}:")
 		mat = [[0, 0], [0, 0]]
 		model = KNN(k, train, cosine_distance)
 		for _, row in test.iterrows():
 			sample = row.drop("knight").to_dict()
-			prediction = model.predict(sample)
-			mat[values[prediction]][values[row["knight"]]] += 1
+			prediction = translate(model.predict(sample))
+			mat[values[row["knight"]]][values[prediction]] += 1
 		ks.append(describe(mat))
 
 
@@ -137,7 +154,7 @@ def do(train, test):
 		for _, row in test.iterrows():
 			sample = row.to_dict()
 			prediction = knn.predict(sample)
-			predictions.append(prediction)
+			predictions.append(translate(prediction))
 
 		fd.write("\n".join(predictions))
 

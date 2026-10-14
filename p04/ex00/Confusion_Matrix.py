@@ -21,27 +21,36 @@ def get_matrix(prediction_fd, truth_fd):
 			print(f"`{line2}' is not a valid option, only Jedi and Sith are")
 			return None
 
-		mat[val1][val2] += 1
+		mat[val2][val1] += 1
 
 	return mat
 
 def describe(mat):
-	tprecision = mat[0][0] / (mat[0][0] + mat[0][1])
-	trecall = mat[0][0] / (mat[0][0] + mat[1][0])
-	nprecision = mat[1][1] / (mat[1][1] + mat[1][0])
-	nrecall = mat[1][1] / (mat[1][1] + mat[0][1])
+	tp = mat[0][0]
+	fn = mat[0][1]
+	fp = mat[1][0]
+	tn = mat[1][1]
+
+	total = tn + tp + fn + fp
+
+	tprecision = tp / (tp + fp)
+	trecall = tp / (tp + fn)
+
+	nprecision = tn / (tn + fn)
+	nrecall = tn / (tn + fp)
+
 	tf1 = 2 * tprecision * trecall / (tprecision + trecall)
 	nf1 = 2 * nprecision * nrecall / (nprecision + nrecall)
-	acc = (tf1 + nf1) / 2
-	total = sum(sum(l) for l in mat)
+
+	acc = (tp + tn) / total
+
 	print(f"{'':10}{'precision':10}{'recall':10}{'f1-score':10}{'total':10}\n")
 	print(f"{'Jedi':10}{tprecision:<10.2f}{trecall:<10.2f}{tf1:<10.2f}{sum(mat[0]):<10}")
 	print(f"{'Sith':10}{nprecision:<10.2f}{nrecall:<10.2f}{nf1:<10.2f}{sum(mat[1]):<10}\n")
 	print(f"{'accuracy':10}{'':10}{'':10}{acc:<10.2f}{total:<10}\n")
-	print(f"[[{mat[0][0]} {mat[0][1]}]\n [{mat[1][0]} {mat[1][1]}]]")
+	print(f"[[{tp} {fp}]\n [{fn} {tn}]]")
 
 def plot(mat):
-	mat = [[mat[i][j] for i in range(2)] for j in range(2)]
 	plt.imshow(mat, cmap="Blues")
 
 	for i in range(2):

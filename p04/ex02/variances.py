@@ -13,6 +13,10 @@ def main():
 	pca = PCA()
 	pca.fit(X)
 
+	print("Variances (percentage):")
+	print(pca.explained_variance_ratio_)
+
+	print("\nCumulative varaince (percentage)")
 	cumsum = pca.explained_variance_ratio_.cumsum() * 100
 
 	print(cumsum)

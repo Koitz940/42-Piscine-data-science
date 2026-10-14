@@ -26,15 +26,22 @@ def remove_until_thing(df):
 		df = df.drop(columns=[m])
 		print(f"removing: {m} with a VIF of {vifs[m]}")
 		vifs = get_vifs(df)
+	print()
 	print(df)
 	print("\nVIFs of them:")
 	for key in vifs:
 		print(f"{key}: {vifs[key]:.2f}, so a tolerance of {1/vifs[key]:.2f}")
-		
+
+def show_vifs(df):
+	vifs = get_vifs(df)
+	for key in vifs:
+		print(f"{key}: {vifs[key]:.2f}, so a tolerance of {1/vifs[key]:.2f}")
+	print()
 
 def main():
 	train = pd.read_csv("../Train_knight.csv")
 	train = train.drop(columns=["knight"])
+	show_vifs(train)
 	remove_until_thing(train)
 
 if __name__ == "__main__":
