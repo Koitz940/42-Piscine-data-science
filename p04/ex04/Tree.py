@@ -267,16 +267,33 @@ def describe(mat):
 
 	total = tn + tp + fn + fp
 
-	tprecision = tp / (tp + fp)
-	trecall = tp / (tp + fn)
+	tprecision = 0
+	try:
+		tprecision = tp / (tp + fp)
+	except:
+		tprecision = 1
 
-	nprecision = tn / (tn + fn)
-	nrecall = tn / (tn + fp)
+	trecall = 0
+	try:
+		trecall = tp / (tp + fn)
+	except:
+		trecall = 1
+
+	nprecision = 0
+	try:
+		nprecision = tn / (tn + fn)
+	except:
+		nprecision = 1
+
+	nrecall = 0
+
+	try:
+		nrecall = tn / (tn + fp)
+	except:
+		nrecall = 1
 
 	tf1 = 2 * tprecision * trecall / (tprecision + trecall)
 	nf1 = 2 * nprecision * nrecall / (nprecision + nrecall)
-
-	acc = (tp + tn) / total
 
 	print(f"{'':10}{'precision':10}{'recall':10}{'f1-score':10}{'total':10}\n")
 	print(f"{'Jedi':10}{tprecision:<10.2f}{trecall:<10.2f}{tf1:<10.2f}{sum(mat[0]):<10}")

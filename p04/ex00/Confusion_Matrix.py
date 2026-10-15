@@ -33,11 +33,30 @@ def describe(mat):
 
 	total = tn + tp + fn + fp
 
-	tprecision = tp / (tp + fp)
-	trecall = tp / (tp + fn)
+	tprecision = 0
+	try:
+		tprecision = tp / (tp + fp)
+	except:
+		tprecision = 1
 
-	nprecision = tn / (tn + fn)
-	nrecall = tn / (tn + fp)
+	trecall = 0
+	try:
+		trecall = tp / (tp + fn)
+	except:
+		trecall = 1
+
+	nprecision = 0
+	try:
+		nprecision = tn / (tn + fn)
+	except:
+		nprecision = 1
+
+	nrecall = 0
+
+	try:
+		nrecall = tn / (tn + fp)
+	except:
+		nrecall = 1
 
 	tf1 = 2 * tprecision * trecall / (tprecision + trecall)
 	nf1 = 2 * nprecision * nrecall / (nprecision + nrecall)
