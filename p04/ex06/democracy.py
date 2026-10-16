@@ -1,4 +1,5 @@
 import abc
+from narwhals import Boolean
 import pandas as pd
 from collections import Counter
 import math
@@ -51,12 +52,16 @@ def canberra(s1, s2):
 
 
 class Classifier(ABC):
-    def __init__(self):
-        pass
+	def __init__(self):
+		pass
 
-    @abstractmethod
-    def predict(self, sample) -> list[float]:
-        pass
+	@abstractmethod
+	def predict(self, sample) -> list[float]:
+		pass
+
+	@abstractmethod
+	def fit(self, df) -> None:
+		pass
 
 
 class TreeClassifier(Classifier):
@@ -96,6 +101,8 @@ class TreeClassifier(Classifier):
 			return self.left.predict(sample)
 		return self.right.predict(sample)
 
+	def fit(self, df):
+		self.init_params(df)
 
 	@staticmethod
 	def gini_counts(jedi, sith):
@@ -241,15 +248,15 @@ class RandomForest(Classifier):
 
 
 class KNN(Classifier):
-	def __init__(self, k, df, distance):
+	def __init__(self, k, distance):
 		self.k = k
 		self.distance = distance
 
+	def fit(self, df):
 		self.features = df.columns.drop("knight")
 		self.X = df[self.features].to_numpy(dtype=float)
 
 		self.y = df["knight"].to_numpy()
-
 		self.candidates = [
 			dict(zip(self.features, row))
 			for row in self.X
@@ -301,6 +308,8 @@ class VotingClassifier(Classifier):
 			self.weights = [float(i) for i in weights]
 
 	def predict(self, sample):
+		sample = np.asarray(sample, dtype=float).reshape(-1)
+		sample = (sample - self.means) / self.sds
 		ret = [0, 0]
 		for (classifier, weight) in zip(self.classifiers, self.weights):
 			pred = classifier.predict(sample)
@@ -311,16 +320,33 @@ class VotingClassifier(Classifier):
 
 		return [i / s for i in ret]
 
+	def fit(self, df):
+		self.features = df.columns.drop("knight")
+
+		X_train = df[self.features].copy()
+
+		self.means = X_train.mean()
+		self.sds = X_train.std()
+		X_train = (X_train - self.means) / self.sds
+		X_train = X_train.astype(float)
+		X_train["knight"] = df["knight"]
+
+		for classifier in self.classifiers:
+			classifier.fit(X_train)
 
 class MLP(Classifier):
 	learning_rate: float
 	layers: list[int]
 	weights: list[list[float]]
 	biases: list[list[float]]
+	verbose: bool
+	epochs: int
 
-	def __init__(self, input_size, hidden_layers, output_size, learning_rate=0.1, seed=None):
+	def __init__(self, input_size, hidden_layers, output_size, learning_rate=0.1, seed=None, epochs=1000, verbose=False):
 		self.learning_rate = learning_rate
 		rng = np.random.default_rng(seed)
+		self.verbose = verbose
+		self.epochs = epochs
 
 		self.layers = [input_size] + hidden_layers + [output_size]
 
@@ -340,7 +366,10 @@ class MLP(Classifier):
 		return 1 / (1 + np.exp(-np.clip(z, -500, 500)))
 
 	def softmax(self, z):
+		z = np.asarray(z)
+
 		exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
+
 		return exp_z / np.sum(exp_z, axis=1, keepdims=True)
 
 	def forward(self, X):
@@ -390,80 +419,53 @@ class MLP(Classifier):
 			self.weights[i] -= self.learning_rate * weight_grads[i]
 			self.biases[i] -= self.learning_rate * bias_grads[i]
 
-	def fit(self, X, y, epochs=1000, verbose=False):
-		for epoch in range(epochs):
+
+	def fit(self, df):
+		features = df.columns.drop("knight")
+		X = df[features].to_numpy(dtype=float)
+
+		y_labels = df["knight"].map({
+			"Jedi": 0,
+			"Sith": 1
+		}).to_numpy()
+
+		y = np.eye(2)[y_labels]
+
+		for epoch in range(self.epochs):
 			predictions = self.forward(X)
 			loss = self.cross_entropy(y, predictions)
 
 			self.backward(y)
 
-			if verbose and (epoch + 1) % 100 == 0:
+			if self.verbose and (epoch + 1) % 100 == 0:
 				print(f"Epoch {epoch + 1}, Loss: {loss:.6f}")
 
-	def predict(self, X):
-		result = self.forward(np.asarray(X, dtype=float))
+	def predict(self, sample):
+		result = self.forward(np.asarray(sample, dtype=float))
 
 		if result.shape[0] == 1:
 			return result[0].tolist()
 
 		return result
 
-
-def scale(train, test):
-    features = train.columns.drop("knight")
-
-    X_train = train[features].copy()
-    X_test = test[features].copy()
-
-    y_labels = train["knight"].map({
-        "Jedi": 0,
-        "Sith": 1
-    }).to_numpy()
-
-    y_train = np.eye(2)[y_labels]
-
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
-
-    return X_train.astype(float), X_test.astype(float), y_train
-
-def prepare_mlp(X_train, y_train):
-	model = MLP(
-		input_size=X_train.shape[1],
-		hidden_layers=[10, 16],
-		output_size=2,
-		learning_rate=0.1
-	)
-
-	model.fit(X_train, y_train, epochs=1000, verbose=True)
-	return model
-
 def do(train, test):
 	print("Scaling down the data")
-	x_train, x_test, y_train = scale(train, test)
-	train_scaled = pd.DataFrame(
-		x_train,
-		columns=train.drop(columns=["knight"]).columns,
-		index=train.index
-	)
-	train_scaled["knight"] = train["knight"]
 
 	print("Training Random Forest")
 	forest = RandomForest()
-	forest.fit(train_scaled)
 
 	print("Training KNN")
-	knn = KNN(5, train_scaled, cosine_distance)
+	knn = KNN(5, cosine_distance)
 
 	print("Training MLP")
-	mlp = prepare_mlp(x_train, y_train)
+	mlp = MLP(test.shape[1], [10, 16], 2, verbose=True)
 
 	model = VotingClassifier([mlp, knn, forest], [10, 3, 1])
+	model.fit(train)
 	
 	with open("Voting.txt", "w") as fd:
 		predictions = []
-		for row in x_test:
+		for _, row in test.iterrows():
 			prediction = model.predict(row)
 			predictions.append(translate(prediction))
 
@@ -528,43 +530,27 @@ def evaluate():
 		print("Something went wrong")
 		return
 
-	new_test = test.drop(columns=["knight"])
-
-	x_train, x_test, y_train = scale(train, new_test)
-	
-	train_scaled = pd.DataFrame(
-		x_train,
-		columns=train.drop(columns=["knight"]).columns,
-		index=train.index
-	)
-	train_scaled["knight"] = train["knight"]
-
-	test_scaled = pd.DataFrame(
-			x_test,
-			columns=test.drop(columns=["knight"]).columns,
-			index=test.index
-		)
-	test_scaled["knight"] = test["knight"]
 
 	print("Training Random Forest")
 	forest = RandomForest()
-	forest.fit(train_scaled)
 
 	print("Training KNN")
-	knn = KNN(5, train_scaled, cosine_distance)
+	knn = KNN(5, cosine_distance)
 
 	print("Training MLP")
-	mlp = prepare_mlp(x_train, y_train)
+	mlp = MLP(test.shape[1] - 1, [10, 16], 2, verbose=True)
 
 	model = VotingClassifier([mlp, knn, forest], [2, 2, 1.5])
+	model.fit(train)
 
 	try:
-		for _, line in test_scaled.iterrows():
+		for _, line in test.iterrows():
 			truth.append(line["knight"])
 			line = line.drop("knight")
 			prediction.append(translate(model.predict(line)))
 	except:
 		print("Something went wrong")
+		return
 
 	vals = {"Jedi": 0, "Sith": 1}
 	mat = [[0, 0], [0, 0]]
@@ -587,4 +573,4 @@ def main():
 
 
 if __name__ == "__main__":
-	main()
+	evaluate()
